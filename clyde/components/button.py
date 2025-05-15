@@ -44,6 +44,9 @@ class Button(Component):
     style: ButtonStyles = Field(...)
     """A Button Style."""
 
+    custom_id: str | None = Field(default=None)
+    """A unique identifier used to identify the Button when it is clicked."""
+
     def set_style(self: Self, style: ButtonStyles) -> "Button":
         """
         Set the style of the Button.
@@ -55,6 +58,20 @@ class Button(Component):
             self (Button): The modified Button instance.
         """
         self.style = style
+
+        return self
+
+    def set_custom_id(self: Self, custom_id: str) -> "Button":
+        """
+        Set the custom ID of the Button.
+
+        Arguments:
+            custom_id (str): A unique identifier used to identify the Button when it is clicked.
+
+        Returns:
+            self (Button): The modified Button instance.
+        """
+        self.custom_id = custom_id
 
         return self
 
