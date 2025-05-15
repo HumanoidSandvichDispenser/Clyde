@@ -373,6 +373,9 @@ class Webhook(BaseModel):
     poll: Poll | None = Field(default=None)
     """A Poll!"""
 
+    message_id: int | None = Field(default=None)
+    """The message ID of the webhook. This is used for editing and deleting a webhook message."""
+
     _query_params: dict[str, str] = {}
     """Additional query parameters to append to the URL."""
 
@@ -397,6 +400,16 @@ class Webhook(BaseModel):
         logging.debug(f"{res.request.method=} {res.request.content=}")
         logging.debug(f"{res.status_code=} {res.text=}")
 
+        print(res.text)
+
+        try:
+            res_json = res.json()
+            if res_json and "id" in res_json:
+                self.message_id = res_json["id"]
+        except ValueError:
+            # JSON decoding failed
+            pass
+
         return res.raise_for_status()
 
     async def execute_async(self: Self) -> Response:
@@ -414,6 +427,54 @@ class Webhook(BaseModel):
         async with AsyncClient() as client:
             res: Response = await client.post(
                 str(self.url),
+                json=self.model_dump(exclude_none=True, serialize_as_any=True),
+                params=self._query_params,
+            )
+
+        logging.debug(f"{res.request.method=} {res.request.content=}")
+        logging.debug(f"{res.status_code=} {res.text=}")
+
+        return res.raise_for_status()
+
+    def edit(self: Self) -> Response:
+        """
+        Edits an existing Webhook message.
+        """
+        if not self.url:
+            raise ValueError("Webhook URL cannot be None")
+
+        if not self.message_id:
+            raise ValueError("Webhook message_id cannot be None")
+
+        res: Response = httpx.patch(
+            str(self.url) + f"/messages/{self.message_id}",
+            json=self.model_dump(exclude_none=True, serialize_as_any=True),
+            params=self._query_params,
+        )
+
+        logging.debug(f"{res.request.method=} {res.request.content=}")
+        logging.debug(f"{res.status_code=} {res.text=}")
+
+        return res.raise_for_status()
+
+    async def edit_async(self: Self) -> Response:
+        """
+        Asynchronously execute the current Webhook instance.
+
+        https://discord.com/developers/docs/resources/webhook#execute-webhook
+
+        Returns:
+            res (Response): Response object for the execution request.
+        """
+        if not self.url:
+            raise ValueError("Webhook URL cannot be None")
+
+        if not self.message_id:
+            raise ValueError("Webhook message_id cannot be None")
+
+        async with AsyncClient() as client:
+            res: Response = await client.patch(
+                str(self.url) + f"/messages/{self.message_id}",
                 json=self.model_dump(exclude_none=True, serialize_as_any=True),
                 params=self._query_params,
             )
@@ -742,6 +803,22 @@ class Webhook(BaseModel):
         else:
             self._query_params[key] = thread_id
 
+        return self
+
+    def set_message_id(self: Self, message_id: int | None) -> "Webhook":
+        """
+        Set the message ID of the Webhook.
+
+        This is used for editing and deleting a webhook message.
+
+        Arguments:
+            message_id (int | None): A message ID. If set to None, the message_id value
+            is cleared.
+
+        Returns:
+            self (Webhook): The modified Webhook instance.
+        """
+        self.message_id = message_id
         return self
 
     def _set_with_components(self: Self, with_components: bool | None) -> "Webhook":
